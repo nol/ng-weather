@@ -25,7 +25,7 @@ export class LocationService {
 
   /**
    * 
-   * @returns Signal of current zipcodes in use.
+   * @returns Signal of current zip codes in use.
    */
   getCurrentLocations(): Signal<string[]> {
     return this.currentLocations.asReadonly();
@@ -33,7 +33,7 @@ export class LocationService {
 
   /**
    * 
-   * @returns Signal of last zipcode added.
+   * @returns Signal of last zip code added.
    */
   getLocationAdded(): Signal<string> {
     return this.locationAdded.asReadonly();
@@ -41,7 +41,7 @@ export class LocationService {
 
   /**
    * 
-   * @returns Signal of last zipcode removed.
+   * @returns Signal of last zip code removed.
    */
   getLocationRemoved(): Signal<string> {
     return this.locationRemoved.asReadonly();
@@ -49,7 +49,7 @@ export class LocationService {
 
   /**
    * Adds location to the list of locations and notify listeners.
-   * @param zipcode Map location zipcode.
+   * @param zipcode Map location zip code.
    */
   addLocation(zipcode : string): void {
     if (!this.locations.includes(zipcode)) {
@@ -62,14 +62,33 @@ export class LocationService {
   }
 
   /**
-   * Removes locaiton from the list of locations and notify listeners.
-   * @param zipcode Map location zipcode.
+   * Removes location from the list of locations and notify listeners.
+   * @param zipcode Map location zip code.
    */
-  removeLocation(zipcode : string): void {
+  removeLocation(zipcode: string): void {
     let index = this.locations.indexOf(zipcode);
     if (index !== -1){
       this.locations.splice(index, 1);
       this.locationRemoved.set(zipcode);
+      this.currentLocations.update(locations => {
+        for (let i in locations) {
+          if (locations[i] == zipcode)
+            locations.splice(+i, 1);
+        }
+        return locations;
+      });
+      this.storeService.store<string[]>(LOCATIONS, this.locations, true);
+    }
+  }
+
+  /**
+   * Removes invalid location and notify listeners.
+   * @param zipcode Map location zip code.
+   */
+  invalidLocation(zipcode: string): void {
+    let index = this.locations.indexOf(zipcode);
+    if (index !== -1){
+      this.locations.splice(index, 1);
       this.currentLocations.update(locations => {
         for (let i in locations) {
           if (locations[i] == zipcode)

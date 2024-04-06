@@ -5,8 +5,8 @@
 
 export const environment = {
   production: false,
-  weatherAPI: 'http://api.openweathermap.org/data/2.5',
-  weatherAPIKEY: '5a4b2d457ecbef9eb2a71e480b947604',//'491c5c8f06521146afb9c575819c23ca'
+  weatherAPI: 'https://api.openweathermap.org/data/2.5',
+  weatherAPIKEY: '5a4b2d457ecbef9eb2a71e480b947604',
   weatherCountryCode: 'us',
   weatherUnit: 'imperial',
   weatherForcastDays: '5',

@@ -3,7 +3,7 @@ import {Observable, of} from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { environment } from 'environments/environment';
 
-import {HttpClient} from '@angular/common/http';
+import {HttpClient, HttpErrorResponse, HttpStatusCode} from '@angular/common/http';
 import {CurrentConditions} from './current-conditions/current-conditions.type';
 import {ConditionsAndZip} from './conditions-and-zip.type';
 import {Forecast} from './forecasts-list/forecast.type';
@@ -20,13 +20,14 @@ export class WeatherService {
   private logger = inject(LoggerService);
   private storeService = inject(StoreService);
   private currentConditions = signal<ConditionsAndZip[]>([]);
+  private invalidZipCode = signal<string>('');
   private currentZips: string[] = [];
 
   constructor(private http: HttpClient) { }
 
   /**
-   * Add weather current conditions by zipcode.
-   * @param zipcode Map location zipcode.
+   * Add weather current conditions by zip code.
+   * @param zipcode Map location zip code.
    */
   addCurrentConditions(zipcode: string): void {
     if (zipcode !== '' && !this.currentZips.includes(zipcode)) {
@@ -37,18 +38,31 @@ export class WeatherService {
         this.logger.debug('from store', condition);
         this.currentConditions.update(conditions => [...conditions, {zip: zipcode, data: condition}]);
       } else {
-        this.getCurrentConditionsSource(zipcode).subscribe((data) => {
-          this.logger.debug('new to store', data);
-          this.currentConditions.update(conditions => [...conditions, {zip: zipcode, data}]);
-          this.storeService.store<CurrentConditions>(CONDITION_PREFIX + zipcode, data);
-        });
+        this.getCurrentConditionsSource(zipcode).subscribe(
+          (data) => {
+            this.logger.debug('new to store', data);
+            this.currentConditions.update(conditions => [...conditions, {zip: zipcode, data}]);
+            this.storeService.store<CurrentConditions>(CONDITION_PREFIX + zipcode, data);
+          },
+          (error: HttpErrorResponse) => {
+            //When condition returns error, notify of invalid zip code.
+            if (error.status == HttpStatusCode.NotFound) {
+              this.invalidZipCode.set(zipcode);
+            } else {
+              //Removes from current zips so it can retry
+              let index = this.currentZips.indexOf(zipcode);
+              this.currentZips.splice(index, 1);
+            }
+            this.logger.error(error.message);
+          }
+        );
       }
     }
   }
 
   /**
-   * Removes weather current conditions by zipcode.
-   * @param zipcode Map location zipcode.
+   * Removes weather current conditions by zip code.
+   * @param zipcode Map location zip code.
    */
   removeCurrentConditions(zipcode: string) {
     this.logger.debug('Removing condition', zipcode);
@@ -71,6 +85,14 @@ export class WeatherService {
    */
   getCurrentConditions(): Signal<ConditionsAndZip[]> {
     return this.currentConditions.asReadonly();
+  }
+
+  /**
+   * 
+   * @returns Signal of invalid zip code.
+   */
+  getInvalidZipCode(): Signal<string> {
+    return this.invalidZipCode.asReadonly();
   }
 
   /**

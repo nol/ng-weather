@@ -18,6 +18,7 @@ export class CurrentConditionsComponent {
   protected currentLocations: Signal<string[]> = this.locationService.getCurrentLocations();
   protected locationAdded: Signal<string> = this.locationService.getLocationAdded();
   protected locationRemoved: Signal<string> = this.locationService.getLocationRemoved();
+  protected invalidLocation: Signal<string> = this.weatherService.getInvalidZipCode();
 
   constructor() {
     // Loads the weather current conditions by stored locations on start.
@@ -28,6 +29,9 @@ export class CurrentConditionsComponent {
     
     // Removes the weather current condition on location remove.
     effect(() => this.weatherService.removeCurrentConditions(this.locationRemoved()), { allowSignalWrites: true });
+
+    // Removes the location when invalid.
+    effect(() => this.locationService.invalidLocation(this.invalidLocation()), { allowSignalWrites: true });
   }
 
   /**
