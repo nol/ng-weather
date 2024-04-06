@@ -1,33 +1,83 @@
-import { Injectable } from '@angular/core';
-import {WeatherService} from "./weather.service";
+import { Injectable, Signal, inject, signal } from '@angular/core';
+import { StoreService } from './store.service';
+import { LoggerService } from './logger.service';
 
-export const LOCATIONS : string = "locations";
+const LOCATIONS: string = "locations";
 
 @Injectable()
 export class LocationService {
+  private loggerService = inject(LoggerService);
+  private storeService = inject(StoreService);
+  private currentLocations = signal<string[]>([]);
+  private locationAdded = signal<string>('');
+  private locationRemoved = signal<string>('');
+  private locations: string[] = [];
 
-  locations : string[] = [];
-
-  constructor(private weatherService : WeatherService) {
-    let locString = localStorage.getItem(LOCATIONS);
-    if (locString)
-      this.locations = JSON.parse(locString);
-    for (let loc of this.locations)
-      this.weatherService.addCurrentConditions(loc);
+  constructor() {
+    // Loads locations from store.
+    this.locations = this.storeService.retrieve<string[]>(LOCATIONS) || [];
+    if (this.locations.length) {
+      this.loggerService.debug('Init locations', this.locations);
+      // Sets locations to notify listeners.
+      this.currentLocations.set(this.locations);
+    }
   }
 
-  addLocation(zipcode : string) {
-    this.locations.push(zipcode);
-    localStorage.setItem(LOCATIONS, JSON.stringify(this.locations));
-    this.weatherService.addCurrentConditions(zipcode);
+  /**
+   * 
+   * @returns Signal of current zipcodes in use.
+   */
+  getCurrentLocations(): Signal<string[]> {
+    return this.currentLocations.asReadonly();
   }
 
-  removeLocation(zipcode : string) {
+  /**
+   * 
+   * @returns Signal of last zipcode added.
+   */
+  getLocationAdded(): Signal<string> {
+    return this.locationAdded.asReadonly();
+  }
+
+  /**
+   * 
+   * @returns Signal of last zipcode removed.
+   */
+  getLocationRemoved(): Signal<string> {
+    return this.locationRemoved.asReadonly();
+  }
+
+  /**
+   * Adds location to the list of locations and notify listeners.
+   * @param zipcode Map location zipcode.
+   */
+  addLocation(zipcode : string): void {
+    if (!this.locations.includes(zipcode)) {
+      this.loggerService.debug('Adding new zip', zipcode);
+      this.locations.push(zipcode);
+      this.locationAdded.set(zipcode);
+      this.currentLocations.update(locations => [...locations]);
+      this.storeService.store<string[]>(LOCATIONS, this.locations, true);
+    }
+  }
+
+  /**
+   * Removes locaiton from the list of locations and notify listeners.
+   * @param zipcode Map location zipcode.
+   */
+  removeLocation(zipcode : string): void {
     let index = this.locations.indexOf(zipcode);
     if (index !== -1){
       this.locations.splice(index, 1);
-      localStorage.setItem(LOCATIONS, JSON.stringify(this.locations));
-      this.weatherService.removeCurrentConditions(zipcode);
+      this.locationRemoved.set(zipcode);
+      this.currentLocations.update(locations => {
+        for (let i in locations) {
+          if (locations[i] == zipcode)
+            locations.splice(+i, 1);
+        }
+        return locations;
+      });
+      this.storeService.store<string[]>(LOCATIONS, this.locations, true);
     }
   }
 }

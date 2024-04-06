@@ -1,0 +1,7 @@
+<ul class="nav nav-tabs">
+  <li *ngFor="let tab of tabs" (click)="selectTab(tab)" [class.active]="tab.active" class="tab">
+    <span class="close tab-close" (click)="tab.closeTab()">&times;</span>
+    <a href="javascript:">{{tab.title}}</a>
+  </li>
+</ul>
+<ng-content></ng-content>

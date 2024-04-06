@@ -7,9 +7,13 @@ import {LocationService} from "../location.service";
 })
 export class ZipcodeEntryComponent {
 
-  constructor(private service : LocationService) { }
+  constructor(private service: LocationService) { }
 
-  addLocation(zipcode : string){
+  /**
+   * Adds location that user enters.
+   * @param zipcode Map location zipcode
+   */
+  addLocation(zipcode: string){
     this.service.addLocation(zipcode);
   }
 
