@@ -20,7 +20,7 @@ export class WeatherService {
   private logger = inject(LoggerService);
   private storeService = inject(StoreService);
   private currentConditions = signal<ConditionsAndZip[]>([]);
-  private invalidZipCode = signal<string>('');
+  private currentConditionNotFound = signal<string | null>(null);
   private currentZips: string[] = [];
 
   constructor(private http: HttpClient) { }
@@ -30,28 +30,25 @@ export class WeatherService {
    * @param zipcode Map location zip code.
    */
   addCurrentConditions(zipcode: string): void {
-    if (zipcode !== '' && !this.currentZips.includes(zipcode)) {
-      this.logger.debug('Adding condition', zipcode);
-      this.currentZips.push(zipcode);
+    if (!this.currentZips.includes(zipcode)) {
+      this.logger.info('Adding current conditions', zipcode);
       const condition = this.storeService.retrieve<CurrentConditions>(CONDITION_PREFIX + zipcode);
       if(condition != null) {
-        this.logger.debug('from store', condition);
+        this.logger.info('Loading current conditions from store', zipcode);
         this.currentConditions.update(conditions => [...conditions, {zip: zipcode, data: condition}]);
+        this.currentZips.push(zipcode);
       } else {
         this.getCurrentConditionsSource(zipcode).subscribe(
           (data) => {
-            this.logger.debug('new to store', data);
+            this.logger.info('Storing current conditions to store', zipcode);
             this.currentConditions.update(conditions => [...conditions, {zip: zipcode, data}]);
             this.storeService.store<CurrentConditions>(CONDITION_PREFIX + zipcode, data);
+            this.currentZips.push(zipcode);
           },
           (error: HttpErrorResponse) => {
-            //When condition returns error, notify of invalid zip code.
+            //When condition not found, notify.
             if (error.status == HttpStatusCode.NotFound) {
-              this.invalidZipCode.set(zipcode);
-            } else {
-              //Removes from current zips so it can retry
-              let index = this.currentZips.indexOf(zipcode);
-              this.currentZips.splice(index, 1);
+              this.currentConditionNotFound.set(zipcode);
             }
             this.logger.error(error.message);
           }
@@ -65,8 +62,8 @@ export class WeatherService {
    * @param zipcode Map location zip code.
    */
   removeCurrentConditions(zipcode: string) {
-    this.logger.debug('Removing condition', zipcode);
-    if (zipcode !== '' && this.currentZips.includes(zipcode)) {
+    if (this.currentZips.includes(zipcode)) {
+      this.logger.info('Removing current conditions', zipcode);
       this.currentConditions.update(conditions => {
         for (let i in conditions) {
           if (conditions[i].zip == zipcode)
@@ -91,8 +88,8 @@ export class WeatherService {
    * 
    * @returns Signal of invalid zip code.
    */
-  getInvalidZipCode(): Signal<string> {
-    return this.invalidZipCode.asReadonly();
+  getCurrentConditionNotFound(): Signal<string> {
+    return this.currentConditionNotFound.asReadonly();
   }
 
   /**
@@ -103,10 +100,10 @@ export class WeatherService {
   getForecast(zipcode: string): Observable<Forecast> {
     const forecast = this.storeService.retrieve<Forecast>(FORECAST_PREFIX + zipcode);
     if(forecast != null) {
-      this.logger.debug('from store', forecast);
+      this.logger.info('Loading forecast from store', zipcode);
       return of(forecast);
     } else {
-      this.logger.debug('new to store', zipcode);
+      this.logger.info('Storing forecast to store', zipcode);
       return this.getForecastSource(zipcode).pipe<Forecast>(
         tap<Forecast>((forecast: Forecast) => this.storeService.store<Forecast>(FORECAST_PREFIX + zipcode, forecast))
       );

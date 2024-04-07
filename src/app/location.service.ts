@@ -6,18 +6,18 @@ const LOCATIONS: string = "locations";
 
 @Injectable()
 export class LocationService {
-  private loggerService = inject(LoggerService);
+  private logger = inject(LoggerService);
   private storeService = inject(StoreService);
   private currentLocations = signal<string[]>([]);
-  private locationAdded = signal<string>('');
-  private locationRemoved = signal<string>('');
+  private locationAdded = signal<string | null>(null);
+  private locationRemoved = signal<string | null>(null);
   private locations: string[] = [];
 
   constructor() {
     // Loads locations from store.
     this.locations = this.storeService.retrieve<string[]>(LOCATIONS) || [];
     if (this.locations.length) {
-      this.loggerService.debug('Init locations', this.locations);
+      this.logger.info('Loading locations from store', this.locations);
       // Sets locations to notify listeners.
       this.currentLocations.set(this.locations);
     }
@@ -48,12 +48,24 @@ export class LocationService {
   }
 
   /**
+   * Validates the zip code format.
+   * @param zipcode 
+   * @returns If the zip code is valid or not.
+   */
+  isValidLocation(zipcode: string): boolean {
+    // Now just for us format, but it could be expandend to use environment configuration and use the country code.
+    const usCode = /^\d{5}(-\d{4})?$/;
+    this.logger.info('Validating zipcode', zipcode, usCode.test(zipcode));
+    return usCode.test(zipcode);
+  }
+
+  /**
    * Adds location to the list of locations and notify listeners.
    * @param zipcode Map location zip code.
    */
   addLocation(zipcode : string): void {
     if (!this.locations.includes(zipcode)) {
-      this.loggerService.debug('Adding new zip', zipcode);
+      this.logger.info('Adding new location', zipcode);
       this.locations.push(zipcode);
       this.locationAdded.set(zipcode);
       this.currentLocations.update(locations => [...locations]);
@@ -67,28 +79,11 @@ export class LocationService {
    */
   removeLocation(zipcode: string): void {
     let index = this.locations.indexOf(zipcode);
-    if (index !== -1){
+    if (index !== -1) {
+      this.logger.info('Removing location', zipcode);
       this.locations.splice(index, 1);
       this.locationRemoved.set(zipcode);
-      this.currentLocations.update(locations => {
-        for (let i in locations) {
-          if (locations[i] == zipcode)
-            locations.splice(+i, 1);
-        }
-        return locations;
-      });
-      this.storeService.store<string[]>(LOCATIONS, this.locations, true);
-    }
-  }
-
-  /**
-   * Removes invalid location and notify listeners.
-   * @param zipcode Map location zip code.
-   */
-  invalidLocation(zipcode: string): void {
-    let index = this.locations.indexOf(zipcode);
-    if (index !== -1){
-      this.locations.splice(index, 1);
+      this.locationAdded.set(null); // Reset last location added
       this.currentLocations.update(locations => {
         for (let i in locations) {
           if (locations[i] == zipcode)
