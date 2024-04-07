@@ -4,9 +4,9 @@ import {browser, By, element} from 'protractor';
 describe('ng-weather App', () => {
   let page: NgWeatherPage = new NgWeatherPage();
 
-      beforeEach(async() => {
+    beforeEach(async() => {
         await page.navigateTo();
-      });
+    });
 
     it('should have the right rendering', async() => {
         const text = await element(By.css('h2')).getText();
@@ -20,7 +20,7 @@ describe('ng-weather App', () => {
     it('should be possible to add a new location', async() => {
         page.getAddLocationInput().sendKeys('95742');
         page.getAddLocationButton().click();
-        const text = await element(By.css('h3')).getText();
+        const text = await element(By.css('a')).getText();
         expect(text).toContain('Rancho Cordova');
     });
 
@@ -33,12 +33,14 @@ describe('ng-weather App', () => {
 
     it('should be possible to remove a location', async() => {
         await element(By.className('close')).click();
-        const locations = await element.all((By.css('h3')));
+        const locations = await element.all((By.css('a')));
         expect(locations.length).toBe(0);
     });
 
     afterAll(() => {
-        localStorage.clear();
+        if (typeof localStorage !== 'undefined') {
+            localStorage.clear();
+        }
     })
 
 });

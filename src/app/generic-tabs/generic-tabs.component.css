@@ -1,0 +1,21 @@
+.nav-tabs {
+  border-bottom: unset;
+}
+
+.tab-close {
+  position: relative;
+  z-index: 1;
+  margin-right: 7px;
+  margin-top: 9px;
+}
+
+.tab>a,
+a:focus {
+  padding: 10px 20px 10px 15px;
+  background-color: #f5f5f5;
+  color: inherit;
+}
+
+.tab.active>a {
+  background-color: white;
+}
